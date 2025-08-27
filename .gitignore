@@ -1,0 +1,9 @@
+.venv/
+.ruff_cache/
+uv.lock
+/data/**
+/warehouse/**
+!.gitkeep
+__pycache__/
+.ipynb_checkpoints/
+*.db

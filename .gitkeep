@@ -1,0 +1,6 @@
+data/bronze/unhcr/.gitkeep
+data/changes/unhcr/.gitkeep
+warehouse/silver/.gitkeep
+warehouse/gold/.gitkeep
+warehouse/run_log/.gitkeep
+notebooks/.gitkeep
