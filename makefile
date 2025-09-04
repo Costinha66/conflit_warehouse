@@ -1,14 +1,20 @@
 setup:
 	pre-commit install
 
+run.bronze:
+	uv run  -m src.bronze.ingest_cli --cutoff_year 2020 > warehouse/run_log/bronze.jsonl
+
+run.bronze.snapshot:
+	uv run -m src.bronze.snapshot_maker --cutoff_year 2020 --start_year 2020 > warehouse/run_log/bronze_snapshot.jsonl
+
 run.diff:
-	python -m src.diff.diff_cli --t0 2025-08-01 --t1 2025-08-27 > warehouse/run_log/bronze.jsonl
+	uv run  -m src.diff.diff_cli --t0 2025-08-01 --t1 2025-08-27 > warehouse/run_log/bronze.jsonl
 
 run.silver:
-	python -m src.silver.upsert_cli --version 2025-08-27 > warehouse/run_log/silver.jsonl
+	uv run  -m src.silver.upsert_cli --version 2025-08-27 > warehouse/run_log/silver.jsonl
 
 run.gold:
-	python -m src.gold.build_cli > warehouse/run_log/gold.jsonl
+	uv run  -m src.gold.build_cli > warehouse/run_log/gold.jsonl
 
 replay:
 	rm -rf warehouse/silver/* warehouse/gold/*
