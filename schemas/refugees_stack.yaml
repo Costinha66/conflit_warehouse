@@ -1,0 +1,31 @@
+table: refugees_stack
+version: 1
+primary_key: [country_origin, country_destination, year]
+partitions: [year]
+columns:
+  - name: country_origin
+    type: STRING
+    nullable: false
+  - name : country_destination
+    type: STRING
+    nullable: fals
+  - name: refugees
+    type: BIGINT
+    nullable: false
+    dq: "must be >= 0"
+  - name: asylum_seekers
+    type: BIGINT
+    nullable: false
+    dq: "must be >= 0"
+  - name: _bronze_file
+    type: STRING
+    nullable: false
+  - name: _ingest_ts
+    type: TIMESTAMP
+    nullable: false
+  - name: _schema_version
+    type: INT
+    default: 1
+  - name: year
+    type: INT
+    nullable: false
