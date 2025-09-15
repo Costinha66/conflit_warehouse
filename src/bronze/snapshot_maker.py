@@ -39,10 +39,10 @@ def main(
     timer = type("T", (), {"duration_sec": None})()
 
     out_path = Path(f"data/bronze/unhcr/date={snapshot_version}")
-    out_path_parquet = out_path / "part-000.parquet"
+    out_path_parquet = out_path / f"{start_year}-{cutoff_year}-part-000.parquet"
     out_path_parquet.parent.mkdir(parents=True, exist_ok=True)
 
-    csv_path = "data/bronze/unhcr/persons_of_concern.csv"
+    csv_path = "/home/faacosta0245695/conflit/conflit_warehouse/data/raw/unhcr/persons_of_concern.csv"
     # DuckDB
 
     try:

@@ -6,26 +6,46 @@ columns:
   - name: country_origin
     type: STRING
     nullable: false
+    source: [Country of Origin ISO]
   - name : country_destination
     type: STRING
-    nullable: fals
+    nullable: false
+    source: [Country of Asylum ISO]
   - name: refugees
     type: BIGINT
     nullable: false
     dq: "must be >= 0"
+    source: [Refugees]
   - name: asylum_seekers
     type: BIGINT
     nullable: false
     dq: "must be >= 0"
-  - name: _bronze_file
-    type: STRING
+    source: [Asylum Seekers]
+  - name: idps
+    type: BIGINT
     nullable: false
-  - name: _ingest_ts
-    type: TIMESTAMP
+    dq: "must be >= 0"
+    source: [IDPs]
+  - name: stateless
+    type: BIGINT
     nullable: false
-  - name: _schema_version
-    type: INT
-    default: 1
+    dq: "must be >= 0"
+    source: [Stateless]
+  - name: hst
+    type: BIGINT
+    nullable: false
+    dq: "must be >= 0"
+    source: [HST]
+  - name: ooc
+    type: BIGINT
+    nullable: false
+    dq: "must be >= 0"
+    source: [OOC]
   - name: year
     type: INT
     nullable: false
+    source: [Year]
+lineage_columns:
+  - _bronze_file
+  - _ingest_run_id
+  - _transform_version
