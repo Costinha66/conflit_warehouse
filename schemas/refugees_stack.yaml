@@ -1,4 +1,4 @@
-table: refugees_stack
+table: refugee_displacement_conformed
 version: 1
 primary_key: [country_origin, country_destination, year]
 partitions: [year]
