@@ -4,7 +4,7 @@ import pandas as pd
 def harmonize(df_raw: pd.DataFrame, schema: dict) -> pd.DataFrame:
     rename_map = {}
     casts = {}
-    for col in schema["columns"]:
+    for col in schema["contract"]["columns"]:
         canonical = col["name"]
         found = next((c for c in col["source"] if c in df_raw.columns), None)
         if found:
@@ -27,9 +27,12 @@ def harmonize(df_raw: pd.DataFrame, schema: dict) -> pd.DataFrame:
         elif typ == "DATE":
             df[col] = pd.to_datetime(df[col], errors="coerce")
 
-    for col in schema.get("lineage_columns", []):
+    for col in schema["contract"].get("lineage", []):
         if col not in df.columns:
             df[col] = None
 
-    df = df[[c["name"] for c in schema["columns"]] + schema.get("lineage_columns", [])]
+    df = df[
+        [c["name"] for c in schema["contract"]["columns"]]
+        + schema["contract"].get("lineage", [])
+    ]
     return df

@@ -1,51 +1,90 @@
-table: refugee_displacement_conformed
+# refugee_displacement_conformed.yaml
+entity: refugee_displacement_conformed
 version: 1
-primary_key: [country_origin, country_destination, year]
-partitions: [year]
-columns:
-  - name: country_origin
-    type: STRING
-    nullable: false
-    source: [Country of Origin ISO]
-  - name : country_destination
-    type: STRING
-    nullable: false
-    source: [Country of Asylum ISO]
-  - name: refugees
-    type: BIGINT
-    nullable: false
-    dq: "must be >= 0"
-    source: [Refugees]
-  - name: asylum_seekers
-    type: BIGINT
-    nullable: false
-    dq: "must be >= 0"
-    source: [Asylum Seekers]
-  - name: idps
-    type: BIGINT
-    nullable: false
-    dq: "must be >= 0"
-    source: [IDPs]
-  - name: stateless
-    type: BIGINT
-    nullable: false
-    dq: "must be >= 0"
-    source: [Stateless]
-  - name: hst
-    type: BIGINT
-    nullable: false
-    dq: "must be >= 0"
-    source: [HST]
-  - name: ooc
-    type: BIGINT
-    nullable: false
-    dq: "must be >= 0"
-    source: [OOC]
-  - name: year
-    type: INT
-    nullable: false
-    source: [Year]
-lineage_columns:
-  - _bronze_file
-  - _ingest_run_id
-  - _transform_version
+grain: year
+
+contract:
+  primary_key: [country_origin, country_destination, year]
+  partitions:  [year]
+  lineage: [_bronze_file, _ingest_run_id, _transform_version]
+  columns:
+    - name: country_origin
+      type: STRING
+      nullable: false
+      source: [Country of Origin ISO]
+    - name: country_destination
+      type: STRING
+      nullable: false
+      source: [Country of Asylum ISO]
+    - name: refugees
+      type: BIGINT
+      nullable: false
+      dq: ">= 0"
+      source: [Refugees]
+    - name: asylum_seekers
+      type: BIGINT
+      nullable: false
+      dq: ">= 0"
+      source: [Asylum Seekers]
+    - name: idps
+      type: BIGINT
+      nullable: false
+      dq: ">= 0"
+      source: [IDPs]
+    - name: stateless
+      type: BIGINT
+      nullable: false
+      dq: ">= 0"
+      source: [Stateless]
+    - name: hst
+      type: BIGINT
+      nullable: false
+      dq: ">= 0"
+      source: [HST]
+    - name: ooc
+      type: BIGINT
+      nullable: false
+      dq: ">= 0"
+      source: [OOC]
+    - name: year
+      type: INT
+      nullable: false
+      source: [Year]
+
+canonicalizer:
+  input:
+    normalize:
+      country_origin: [strip, upper]
+      country_destination: [strip, upper]
+  dims:
+    - name: countries
+      path: warehouse/dims/countries_dim.parquet
+      on:   {left: country_origin, right: iso3}
+      select: [region_unhcr, region_unsd, subregion_unsd]
+      alias: origin_
+      required: true
+    - name: countries
+      path: warehouse/dims/countries_dim.parquet
+      on:   {left: country_destination, right: iso3}
+      select: [region_unhcr, region_unsd, subregion_unsd]
+      alias: dest_
+      required: true
+  rules:
+    - name: valid_year_bounds
+      when: "year >= 1990 and year <= 2035"
+      action: keep
+      reject_reason: year_out_of_bounds
+
+  dedup:
+    key:   [country_origin, country_destination, year]
+    tiebreak:
+      - column: _ingest_run_id
+        order: desc
+
+  row_hash:
+    columns: [country_origin, country_destination, year, refugees, asylum_seekers, idps, stateless, hst, ooc]
+
+  output:
+    # Final columns = contract columns + aliased dim fields + lineage + row_hash
+    extra: [origin_region_unhcr, origin_region_unsd, origin_subregion_unsd,
+            dest_region_unhcr,   dest_region_unsd,   dest_subregion_unsd]

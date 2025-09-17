@@ -254,6 +254,7 @@ def canonicalize(df_raw: pd.DataFrame, spec: Dict[str, Any]):
         )
         rc.add(rej)
     dq_h.extend(dq_join)
+
     # 3) Rules
     for r in spec.get("rules", []):
         df, rej = filter_rows(
