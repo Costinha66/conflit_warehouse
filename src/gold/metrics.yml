@@ -1,0 +1,48 @@
+metrics:
+  - name: population_of_concern
+    version: 1
+    unit: persons
+    description: >
+      UNHCR-style PoC total: cross_border_total + internal_total + stateless + others_of_concern.
+    formula: population_of_concern
+    computation_grain: year
+    default_aggregation: sum
+    allowed_dimensions: [origin_country, dest_country, origin_region, dest_region]
+    record_set:
+      filters:
+        - expression: origin_country_id <> dest_country_id  # optional; drop if you want domestic IDP corridors
+    validations:
+      - non_negative
+      - equals_components:
+          expression: population_of_concern = cross_border_total + internal_total + stateless + others_of_concern
+
+  - name: cross_border_total
+    version: 1
+    unit: persons
+    description: refugees + asylum_seekers
+    formula: cross_border_total
+    computation_grain: year
+    default_aggregation: sum
+    allowed_dimensions: [origin_country, dest_country, origin_region, dest_region]
+    validations:
+      - non_negative
+
+  - name: internal_total
+    version: 1
+    unit: persons
+    description: idps (internal displacement)
+    formula: internal_total
+    computation_grain: year
+    default_aggregation: sum
+    allowed_dimensions: [origin_country, origin_region]
+    validations:
+      - non_negative
+
+  - name: host_community
+    version: 1
+    unit: persons
+    description: Impact population; excluded from PoC and displaced totals.
+    formula: host_community
+    computation_grain: year
+    default_aggregation: sum
+    allowed_dimensions: [dest_country, dest_region]
