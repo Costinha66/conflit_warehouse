@@ -1,0 +1,188 @@
+entity: refugee_stack_yearly
+version: 1
+introduced_on: 2025-09-29
+description: >
+  Yearly stocks by origin–destination corridor aligned to UNHCR population categories.
+  Base columns mirror UNHCR taxonomy; derived metrics avoid mixing internal/cross-border unless explicit.
+
+owner: filipe_costa
+grain: year
+
+contract:
+  primary_key: [origin_country_id, dest_country_id, year]
+  partitions: [year]
+  overwrite_policy: insert_overwrite_partition
+  lineage_columns:
+    - name: _ingest_run_id
+      type: STRING
+      nullable: false
+    - name: _transform_version
+      type: BIGINT
+      nullable: false
+    - name: _built_at
+      type: TIMESTAMPTZ
+      nullable: false
+  foreign_keys:
+    - column: origin_country_id
+      references: dims.dim_country(country_id)
+    - column: dest_country_id
+      references: dims.dim_country(country_id)
+  tests:
+    - unique: [origin_country_id, dest_country_id, year]
+    - not_null: [origin_country_id, dest_country_id, year]
+    - non_negative: [refugees, asylum_seekers, idps, stateless, others_of_concern,
+                     cross_border_total, internal_total, population_of_concern]
+    - reconcile:
+        name: poc_equals_components
+        expression: population_of_concern = cross_border_total + internal_total + stateless + others_of_concern
+
+columns:
+  - name: origin_country_id
+    type: INT
+    role: dimension_key
+    description: Surrogate key to dim_country (origin)
+    nullable: false
+  - name: dest_country_id
+    type: INT
+    role: dimension_key
+    description: Surrogate key to dim_country (destination)
+    nullable: false
+
+  - name: country_origin
+    type: STRING
+    description: ISO3 code (origin), redundant convenience
+    nullable: false
+  - name: country_destination
+    type: STRING
+    description: ISO3 code (destination), redundant convenience
+    nullable: false
+
+  - name: refugees
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: >
+      Refugees (incl. refugee-like situations, temporary/complementary protection as per UNHCR).
+    nullable: false
+  - name: asylum_seekers
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: Individuals with pending claims for international protection.
+    nullable: false
+  - name: idps
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: Internally displaced persons (incl. IDP-like situations) assisted/mandated by UNHCR.
+    nullable: false
+  - name: stateless
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: Individuals under UNHCR’s statelessness mandate (may include undetermined nationality).
+    nullable: false
+  - name: others_of_concern
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: Other groups/persons of concern (humanitarian grounds) not categorized above.
+    nullable: false
+
+  # Impact population
+  - name: host_community
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: Host communities affected by displacement; not forcibly displaced.
+    nullable: false
+
+  # Derived stacks
+  - name: cross_border_total
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: refugees + asylum_seekers
+    nullable: false
+  - name: internal_total
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: idps
+    nullable: false
+  - name: population_of_concern
+    type: BIGINT
+    unit: persons
+    agg: sum
+    description: cross_border_total + internal_total + stateless + others_of_concern
+    nullable: false
+
+  - name: year
+    type: INT
+    nullable: false
+
+  - name: _ingest_run_id
+    type: STRING
+    nullable: false
+  - name: _transform_version
+    type: BIGINT
+    nullable: false
+  - name: _built_at
+    type: TIMESTAMPTZ
+    nullable: false
+
+transform:
+  source: silver.refugee_displacement_conformed
+
+  select_map:
+    origin_country_id: origin_country_id         # or set after an FK step
+    dest_country_id:   dest_country_id
+    country_origin:       country_origin
+    country_destination:  country_destination
+    refugees:          refugees
+    asylum_seekers:    asylum_seekers
+    idps:              idps
+    stateless:         stateless
+    others_of_concern: others_of_concern
+    host_community:    host_community
+    year:              year
+
+  derivations:
+    cross_border_total: "COALESCE(refugees,0)+COALESCE(asylum_seekers,0)"
+    internal_total:     "COALESCE(idps,0)"
+    population_of_concern: >
+      COALESCE(refugees,0)+COALESCE(asylum_seekers,0)
+      +COALESCE(idps,0)+COALESCE(stateless,0)+COALESCE(others_of_concern,0)
+
+  defaults:
+    host_community: 0
+
+  types:
+    origin_country_id: INT
+    dest_country_id:   INT
+    refugees:          BIGINT
+    asylum_seekers:    BIGINT
+    idps:              BIGINT
+    stateless:         BIGINT
+    others_of_concern: BIGINT
+    host_community:    BIGINT
+    cross_border_total: BIGINT
+    internal_total:     BIGINT
+    population_of_concern: BIGINT
+    year:              INT
+
+  order:
+    - origin_country_id
+    - dest_country_id
+    - country_origin
+    - country_destination
+    - refugees
+    - asylum_seekers
+    - idps
+    - stateless
+    - others_of_concern
+    - host_community
+    - cross_border_total
+    - internal_total
+    - population_of_concern
+    - year

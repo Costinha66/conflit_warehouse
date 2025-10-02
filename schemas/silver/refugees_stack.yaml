@@ -6,50 +6,56 @@ grain: year
 contract:
   primary_key: [country_origin, country_destination, year]
   partitions:  [year]
-  lineage: [_bronze_file, _ingest_run_id, _transform_version]
+  lineage: [_build_at, _ingest_run_id, _transform_version]
   columns:
+    - name: origin_country_id
+      type: BIGINT
+      nullable: false
+    - name: dest_country_id
+      type: BIGINT
+      nullable: false
     - name: country_origin
       type: STRING
       nullable: false
-      source: [Country of Origin ISO]
+      source: [country_of_origin]
     - name: country_destination
       type: STRING
       nullable: false
-      source: [Country of Asylum ISO]
+      source: [country_of_asylum]
     - name: refugees
       type: BIGINT
       nullable: false
       dq: ">= 0"
-      source: [Refugees]
+      source: [refugees]
     - name: asylum_seekers
       type: BIGINT
       nullable: false
       dq: ">= 0"
-      source: [Asylum Seekers]
+      source: [asylum_seekers]
     - name: idps
       type: BIGINT
       nullable: false
       dq: ">= 0"
-      source: [IDPs]
+      source: [idps]
     - name: stateless
       type: BIGINT
       nullable: false
       dq: ">= 0"
-      source: [Stateless]
-    - name: hst
+      source: [stateless]
+    - name: host_community
       type: BIGINT
       nullable: false
       dq: ">= 0"
-      source: [HST]
-    - name: ooc
+      source: [hst]
+    - name: others_of_concern
       type: BIGINT
       nullable: false
       dq: ">= 0"
-      source: [OOC]
+      source: [ooc]
     - name: year
       type: INT
       nullable: false
-      source: [Year]
+      source: [year]
 
 canonicalizer:
   input:
@@ -59,14 +65,14 @@ canonicalizer:
   dims:
     - name: countries
       path: warehouse/dims/countries_dim.parquet
-      on:   {left: country_origin, right: iso3}
-      select: [region_unhcr, region_unsd, subregion_unsd]
+      on_keys:   {left: country_origin, right: iso_country}
+      select: [region_unhcr, sub_region_unhcr, country_id]
       alias: origin_
       required: true
     - name: countries
       path: warehouse/dims/countries_dim.parquet
-      on:   {left: country_destination, right: iso3}
-      select: [region_unhcr, region_unsd, subregion_unsd]
+      on_keys:   {left: country_destination, right: iso_country}
+      select: [region_unhcr, sub_region_unhcr, country_id]
       alias: dest_
       required: true
   rules:
@@ -82,9 +88,9 @@ canonicalizer:
         order: desc
 
   row_hash:
-    columns: [country_origin, country_destination, year, refugees, asylum_seekers, idps, stateless, hst, ooc]
+    columns: [country_origin, country_destination, year, refugees, asylum_seekers, idps, stateless, host_community, others_of_concern]
 
   output:
-    # Final columns = contract columns + aliased dim fields + lineage + row_hash
-    extra: [origin_region_unhcr, origin_region_unsd, origin_subregion_unsd,
-            dest_region_unhcr,   dest_region_unsd,   dest_subregion_unsd]
+    lineage: [_build_at, _ingest_run_id, _transform_version]
+    extra: [origin_region_unhcr, origin_sub_region_unhcr,
+            dest_region_unhcr,   dest_sub_region_unhcr]

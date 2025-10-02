@@ -11,10 +11,10 @@ run.diff:
 	uv run  -m src.diff.discovery
 
 run.silver:
-	uv run  -m src.silver.upsert_cli --version 2025-08-27 > warehouse/run_log/silver.jsonl
+	uv run  -m src.silver.processor
 
 run.gold:
-	uv run  -m src.gold.build_cli > warehouse/run_log/gold.jsonl
+	uv run  -m src.gold.processor_gold
 
 replay:
 	rm -rf warehouse/silver/* warehouse/gold/*

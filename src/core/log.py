@@ -33,3 +33,4 @@ def configure_logging(json_logs: bool = True):
     )
 
     logging.basicConfig(level=logging.INFO)
+    return structlog.get_logger()

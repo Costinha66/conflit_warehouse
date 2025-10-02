@@ -1,24 +1,61 @@
+from datetime import datetime, timezone
 import pandas as pd
 import hashlib
-from typing import List
+import json
+import math
+from typing import List, Dict
+import duckdb
+
+
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def json_safe(o):
+    if isinstance(o, datetime):
+        return iso(o)
+    return str(o)
 
 
 def to_int(series):
     return pd.to_numeric(series, errors="coerce").astype("Int64")
 
 
+def _norm_val(x):
+    # normalize NAs
+    if x is None or (isinstance(x, float) and math.isnan(x)):
+        return ""  # null token; keep stable
+    # timestamps / dates
+    if hasattr(x, "isoformat"):
+        return x.isoformat()
+    # dict/list → stable JSON
+    if isinstance(x, (dict, list)):
+        return json.dumps(x, sort_keys=True, separators=(",", ":"))
+    # pandas NA types
+    try:
+        if pd.isna(x):
+            return ""
+    except Exception:
+        pass
+    # everything else → str
+    return str(x)
+
+
 def stable_hash(df_subset: pd.DataFrame) -> pd.Series:
-    # 1) enforce deterministic column order
-    cols = list(df_subset.columns)
-    s = (
-        df_subset[cols]
-        .astype(object)  # avoid pandas NA casting weirdness
-        .where(pd.notna(df_subset), None)  # normalize NaNs/NaTs
-        .applymap(lambda x: x.isoformat() if hasattr(x, "isoformat") else x)
-        .astype(str)
-        .agg("|".join, axis=1)
-    )
-    return s.apply(lambda x: hashlib.sha256(x.encode("utf-8")).hexdigest())
+    if not isinstance(df_subset, pd.DataFrame):
+        raise TypeError("stable_hash expects a DataFrame with the columns to hash.")
+
+    cols = list(df_subset.columns)  # deterministic column order
+    # convert each cell to a normalized string
+    normalized = df_subset[cols].map(_norm_val)
+    # join row-wise
+    joined = normalized.agg("|".join, axis=1)
+    # hash (returns Series aligned to original index)
+    return joined.apply(lambda s: hashlib.sha256(s.encode("utf-8")).hexdigest())
 
 
 def ensure_columns(df: pd.DataFrame, cols_order: list) -> pd.DataFrame:
@@ -72,6 +109,11 @@ def read_table(path):
     return pd.read_parquet(path)
 
 
+def _quote_ident(name: str) -> str:
+    # minimal identifier quoting
+    return '"' + name.replace('"', '""') + '"'
+
+
 def _normalize_on(on, df_cols, dim_cols):
     if isinstance(on, (list, tuple)):
         left_keys = right_keys = list(on)
@@ -111,3 +153,14 @@ class Rejects:
             return pd.DataFrame()
         cols = list(self._parts[0].columns)
         return pd.concat(self._parts, ignore_index=True)[cols]
+
+
+def _table_cols(con: duckdb.DuckDBPyConnection, table: str) -> Dict[str, str]:
+    """Return {name_lower: type_name_upper} for a table."""
+    rows = con.execute(f"PRAGMA table_info({table})").fetchall()
+    # schema: cid, name, type, notnull, dflt_value, pk
+    return {r[1].lower(): (r[2] or "").upper() for r in rows}
+
+
+def _count(con: duckdb.DuckDBPyConnection, sql: str, params: list | None = None) -> int:
+    return con.execute(sql, params or []).fetchone()[0]

@@ -1,4 +1,5 @@
 import pandas as pd
+import duckdb
 
 
 def normalize_cols(cols):
@@ -36,8 +37,35 @@ def build_country_dim(
         "sub_region_unhcr",
     ]
     country_df = df[keep_cols]
+    country_df.insert(0, "country_id", range(1, len(country_df) + 1))
     country_df.to_parquet(PARQUET_COUNTRY, index=False)
+
+
+def load_dim_country():
+    DB_PATH = "warehouse/database.db"
+    DIM_PARQUET = "warehouse/dims/countries_dim.parquet"
+
+    # connect
+    con = duckdb.connect(DB_PATH)
+
+    # create schema if missing
+    con.execute("CREATE SCHEMA IF NOT EXISTS dims;")
+
+    # drop & recreate the dim (or do CREATE OR REPLACE)
+    con.execute(
+        """
+        CREATE OR REPLACE TABLE dims.dim_country AS
+        SELECT *
+        FROM read_parquet(?);
+    """,
+        [DIM_PARQUET],
+    )
+
+    # sanity check
+    print(con.execute("SELECT COUNT(*) AS n_rows FROM dims.dim_country;").fetchall())
+    print(con.execute("PRAGMA table_info('dims.dim_country');").df())
 
 
 if __name__ == "__main__":
     build_country_dim()
+    load_dim_country()

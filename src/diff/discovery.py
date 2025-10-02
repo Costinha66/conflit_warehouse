@@ -5,13 +5,29 @@ from datetime import datetime, timezone
 import pandas as pd
 import duckdb
 import re
+import structlog
+from src.others.ddls import create_diff
+
+# ---- configure logging ----
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(min_level=20),  # INFO+
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.add_log_level,
+        structlog.dev.ConsoleRenderer(),
+    ],
+)
+log = structlog.get_logger()
 
 
 def compute_file_hash(path: Path, chunk_size=65536) -> str:
+    log.debug("computing_hash.start", file=str(path))
     h = hashlib.sha256()
     with open(path, "rb") as f:
         while chunk := f.read(chunk_size):
             h.update(chunk)
+    digest = h.hexdigest()
+    log.debug("computing_hash.done", file=str(path), hash=digest)
     return h.hexdigest()
 
 
@@ -19,7 +35,9 @@ def _extract_source_id(file_path: Path) -> str | None:
     parts = file_path.parts
     if "bronze" in parts:
         i = parts.index("bronze")
-        return parts[i + 1] if i + 1 < len(parts) else None
+        source = parts[i + 1] if i + 1 < len(parts) else None
+        log.debug("source_id.extracted", file=str(file_path), source_id=source)
+        return source
     return None
 
 
@@ -53,6 +71,7 @@ def parse_partition_from_filename(file_path: Path):
 
 
 def discovery(path_warehouse: Path, chunk_size=65536):
+    log.info("discovery.start", path=str(path_warehouse))
     records = []
     for root, _, files in os.walk(path_warehouse):
         for file in files:
@@ -85,71 +104,12 @@ def discovery(path_warehouse: Path, chunk_size=65536):
                         "notes": notes,
                     }
                 )
+    log.info("discovery.done", count=len(records))
     return records
 
 
-def create_manifest(con):
-    con.execute("""
-    CREATE TABLE IF NOT EXISTS ingest_manifest (
-        source_id        TEXT,
-        file_path        TEXT,
-        content_hash     TEXT,
-        file_size        BIGINT,
-        coverage_start   TEXT,
-        coverage_end     TEXT,
-        grain            TEXT,
-        discovered_at    TIMESTAMP,
-        processed_at     TIMESTAMP,
-        status           TEXT,   -- 'pending' | 'processed' | 'failed' | 'superseded'
-        run_id           TEXT,
-        notes            TEXT,
-        PRIMARY KEY (file_path, content_hash)
-        );
-    """)
-
-
-def create_dirty_partitions(con):
-    con.execute("""
-    CREATE TABLE IF NOT EXISTS dirty_partitions (
-        entity         TEXT,
-        partition_key  TEXT,
-        reason         TEXT,
-        first_seen_at  TIMESTAMP,
-        last_seen_at   TIMESTAMP,
-        status         TEXT
-            );
-    """)
-
-
-def create_router(con):
-    con.execute("""
-    CREATE TABLE IF NOT EXISTS entity_router (
-        route_id        TEXT,                         -- stable id, e.g., 'unhcr_refugees'
-        source_id       TEXT,                         -- e.g., 'unhcr'
-        path_regex      TEXT,                         -- regex against full file_path
-        entity          TEXT,                         -- e.g., 'refugee_displacement_conformed'
-        grain    TEXT CHECK (grain IN ('month','year')),
-        enabled         BOOLEAN DEFAULT TRUE,
-        notes           TEXT,
-        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (route_id)
-        );
-    """)
-
-    con.execute("""
-    CREATE TABLE IF NOT EXISTS manifest_partition_link (
-        file_path     TEXT,
-        content_hash  TEXT,
-        entity        TEXT,
-        partition_key TEXT,               -- canonical (e.g., 'YYYY-MM' or 'YYYY')
-        route_id      TEXT,               -- provenance: which router rule matched
-        linked_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (file_path, content_hash, entity, partition_key)
-);
-    """)
-
-
 def populate_manifest(con, df):
+    log.info("manifest.populate.start", rows=len(df))
     con.execute("BEGIN")
     con.register("staging_manifest", df)
 
@@ -186,9 +146,11 @@ def populate_manifest(con, df):
     """)
     con.execute("COMMIT;")
     con.unregister("staging_manifest")
+    log.info("manifest.populate.done")
 
 
 def dirty_partitions(con):
+    log.info("dirty_partitions.start")
     con.execute("BEGIN")
     con.execute("""CREATE TEMP TABLE _pending_latest AS
         SELECT m.*
@@ -277,22 +239,24 @@ def dirty_partitions(con):
         WHERE d.entity IS NULL;
     """)
     con.execute("COMMIT;")
+    log.info("dirty_partitions.end")
 
 
 def main(
     bronze_path: str = "/home/faacosta0245695/conflit/conflit_warehouse/data/bronze",
     warehouse_path="warehouse/database.db",
 ):
+    run_id = datetime.now(timezone.utc).isoformat()
+    log.info("pipeline.run.start", run_id=run_id)
     records = discovery(bronze_path)
 
     df = pd.DataFrame.from_records(records)
     con = duckdb.connect(warehouse_path)
-    create_manifest(con)
-    create_dirty_partitions(con)
-    create_router(con)
+    create_diff(con)
     populate_manifest(con, df)
     dirty_partitions(con)
     con.close()
+    log.info("pipeline.run.done", run_id=run_id)
 
 
 if __name__ == "__main__":
