@@ -7,7 +7,7 @@ from src.core.lineage import (
     DuckDBAuditEmitter,
     StdoutJsonEmitter,
 )
-from src.core.dataclasses import CommitEvent
+from src.core.types import CommitEvent
 from src.core.miscelannious import _quote_ident
 
 

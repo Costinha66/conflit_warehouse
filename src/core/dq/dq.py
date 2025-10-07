@@ -177,9 +177,6 @@ def check_type_alignment(con, tmp, expected_types: Dict[str, str]) -> TestResult
     return TestResult("types_match", status, {"mismatches": mismatches})
 
 
-# ---------------------------
-# Coordinator
-# ---------------------------
 def run_dq_tests(
     con: duckdb.DuckDBPyConnection,
     tmp_table: str,

@@ -2,6 +2,7 @@ from dataclasses import dataclass, asdict, field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
+from pathlib import Path
 from src.core.miscelannious import iso
 
 
@@ -90,3 +91,41 @@ class CommitEvent:
     dq_summary: DQSummary
     spec_version: str
     finished_at: datetime
+
+
+@dataclass
+class DiscoveryConfig:
+    bronze_root: Path
+    router_path: Path
+    db_path: Path
+    max_workers: int = 8
+    log_level: str = "INFO"
+
+
+@dataclass
+class RouteRule:
+    pattern: str
+    entity: str
+    grain: str
+    source_id: Optional[str] = None
+    route_id: Optional[str] = None
+
+
+@dataclass
+class DQResult:
+    passed: bool
+    level: str = "MINOR"  # "MINOR"|"MAJOR"|"CRITICAL"
+    metrics: dict = None  # e.g., {"negatives": 0, "iso_unmapped": 12}
+
+
+@dataclass(frozen=True)
+class SnapshotConfig:
+    db_path: Path
+    csv_path: Path
+    out_root: Path
+    source: str = "unhcr"
+    mode: str = "cumulative"
+    start_year: int = 2020
+    cutoff_year: int = 2020
+    snapshot_version: Optional[str] = None
+    overwrite: bool = True
