@@ -62,17 +62,42 @@ duckdb results/warehouse.duckdb
 ```bash
 conflit_warehouse/
 │
-├── src/
-│   ├── diff/      # Ingestion, discovery  routing logic
-│   ├── dq/        # Data quality checks & builders
-│   └── snapshot/  # Snapshot creation and management
+├─ src/
+│  ├─ bronze/
+│  │  └─ snapshot_maker.py        # snapshot creation + metrics + dq
+│  ├─ diff/
+│  │  ├─ discovery.py             # scan bronze, populate ingest_manifest, routing
+│  │  ├─ parser.py, planner.py, router.py, router.yaml
+│  ├─ silver/
+│  │  ├─ processor.py             # canonicalize + harmonize → silver tables
+│  │  ├─ canonilaze.py, harmonizer.py
+│  ├─ gold/
+│  │  └─ processor_gold.py        # build analytics marts from silver
+│  ├─ core/
+│  │  ├─ types.py, config.py, logging.py, metrics.py, time.py, json.py
+│  │  ├─ dq/                      # bronze policy + dq helpers
+│  │  ├─ lineage/                 # lineage models & emitters
+│  │  └─ sql/, infra/duckdb/, infra/yaml_sql/
+│  └─ others/
+│     ├─ ddls.py                  # DDL helpers (ingest_manifest, etc.)
+│     └─ load_dim_country.py
 │
-├── schemas/       # Table contracts and DQ definitions
-├── notebooks/     # Exploratory data analysis
-├── tests/         # Unit and integration tests
-├── docs/          # documentation
-├── makefile       # Operational entrypoints
-└── pyproject.toml # Project configuration
+├─ schemas/
+│  ├─ silver/                     # e.g., refugees_stack.yaml, refugees_internal.yaml
+│  └─ gold/                       # e.g., refugees_stack_yearly.yaml
+│
+├─ tests/
+│  └─ test_diff.py                # discovery/manifest tests
+│
+├─ docs/
+│  └─ decisions.md                # decisions & assumptions (SLA, promotion gates)
+│
+├─ notebooks/
+│  └─ exploration.ipynb
+│
+├─ makefile
+├─ pyproject.toml
+└─ .pre-commit-config.yaml
 ```
 
 
