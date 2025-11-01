@@ -9,6 +9,8 @@ This proof-of-concept demonstrates how to build a **bronze–silver–gold lakeh
 
 The **Conflict & Crisis Data Warehouse (CCDW)** integrates open sources such as **UNHCR refugee flows**, **ACLED conflict events**, and other humanitarian datasets into a unified, auditable warehouse.  
 
+The pipeline can track monthly refugee movements across borders and join with conflict intensity data to forecast displacement pressure on host countries.
+
 It is designed to:
 - Support **policy analysis and forecasting** in conflict and displacement research;
 - Enforce **data quality (DQ)** and schema contracts at every layer;
@@ -98,15 +100,52 @@ conflit_warehouse/
 ├─ makefile
 ├─ pyproject.toml
 └─ .pre-commit-config.yaml
+
+
 ```
 
+## Typical Flow & Artifacts
 
-Author
+1. Bronze snapshot
+
+    - Writes Parquet under warehouse/bronze/...
+
+    - Computes records, bytes, SHA256
+
+    - Emits DQ summary
+
+    - Discovery → Manifest
+
+    - Scans Bronze and populates ingest_manifest in DuckDB
+
+    - Maps sources → entities / partitions (router.yaml)
+
+    - Expands partitions (YYYY, YYYY-MM) and marks dirty routes
+
+2. Silver
+
+    - Loads dirty partitions
+
+    - Applies canonicalize() → harmonize()
+
+    - Enforces schema contracts from schemas/silver/*.yaml
+
+    - Writes partitioned Silver tables
+
+3. Gold
+
+    - Builds analytics marts from latest promoted Silver via schemas/gold/*.yaml
+
+This project emphasizes data transparency, auditability, and responsible use of humanitarian data.
+All data used are synthetic or open-source, and the pipeline design ensures traceable lineage and reproducible outputs, aligning with principles of Do No Harm and data responsibility.
+
+## Author
 
 Filipe Costa
+
 Data Science @ JADS
 
-License
+## License
 
 MIT License © 2025 Filipe Costa
 
