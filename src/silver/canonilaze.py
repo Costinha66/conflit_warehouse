@@ -3,7 +3,6 @@ from src.core.miscelannious import (
     _normalize_on,
     stable_hash,
     ensure_columns,
-    Rejects,
 )
 import pandas as pd
 from typing import Dict, Any, List
@@ -135,6 +134,25 @@ def filter_rows(df: pd.DataFrame, rule, action: str, reason: str):
         rejected = rejected.copy()
         rejected["reject_reasons"] = reason
     return kept, rejected
+
+
+class Rejects:
+    def __init__(self):
+        self._parts = []
+
+    def add(self, df_part: pd.DataFrame):
+        if df_part is not None and not df_part.empty:
+            # ensure a 'reject_reasons' column exists
+            if "reject_reasons" not in df_part.columns:
+                df_part = df_part.copy()
+                df_part["reject_reasons"] = "unspecified"
+            self._parts.append(df_part)
+
+    def concat(self) -> pd.DataFrame:
+        if not self._parts:
+            return pd.DataFrame()
+        cols = list(self._parts[0].columns)
+        return pd.concat(self._parts, ignore_index=True)[cols]
 
 
 def canonicalize(df: pd.DataFrame, spec: Dict[str, Any], logger):

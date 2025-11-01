@@ -1,0 +1,12 @@
+# router.yaml
+routes:
+  - pattern: "*/unhcr/*/refugees/*.parquet"
+    source_id: "unhcr"
+    entity: "refugee_displacement_conformed"
+    grain: "year"
+    route_id: "unhcr_refugees_yearly"
+
+  - pattern: "*/bronze/*/*.parquet"
+    entity: "refugee_displacement_conformed"
+    grain: "year"
+    route_id: "default_any"

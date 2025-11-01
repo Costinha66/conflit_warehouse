@@ -1,4 +1,5 @@
 import yaml
+import yaml
 import json
 import math
 import pathlib
@@ -8,6 +9,7 @@ from pathlib import Path
 from datetime import datetime, date
 import numpy as np
 import pandas as pd
+from src.core.time import iso
 
 
 def load_schema(path: Path):
@@ -45,4 +47,10 @@ def _json_default(o):
     if isinstance(o, (pathlib.Path, uuid.UUID)):
         return str(o)
     # anything else: fallback to str
+    return str(o)
+
+
+def json_safe(o):
+    if isinstance(o, datetime):
+        return iso(o)
     return str(o)

@@ -1,24 +1,11 @@
-from datetime import datetime, timezone
 import pandas as pd
 import hashlib
 import json
 import math
-from typing import List, Dict
-import duckdb
-
-
-def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def iso(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).isoformat()
-
-
-def json_safe(o):
-    if isinstance(o, datetime):
-        return iso(o)
-    return str(o)
+from typing import List, Iterator, Optional
+import os
+import fnmatch
+from pathlib import Path
 
 
 def to_int(series):
@@ -109,11 +96,6 @@ def read_table(path):
     return pd.read_parquet(path)
 
 
-def _quote_ident(name: str) -> str:
-    # minimal identifier quoting
-    return '"' + name.replace('"', '""') + '"'
-
-
 def _normalize_on(on, df_cols, dim_cols):
     if isinstance(on, (list, tuple)):
         left_keys = right_keys = list(on)
@@ -136,31 +118,33 @@ def _normalize_on(on, df_cols, dim_cols):
     return left_keys, right_keys
 
 
-class Rejects:
-    def __init__(self):
-        self._parts = []
-
-    def add(self, df_part: pd.DataFrame):
-        if df_part is not None and not df_part.empty:
-            # ensure a 'reject_reasons' column exists
-            if "reject_reasons" not in df_part.columns:
-                df_part = df_part.copy()
-                df_part["reject_reasons"] = "unspecified"
-            self._parts.append(df_part)
-
-    def concat(self) -> pd.DataFrame:
-        if not self._parts:
-            return pd.DataFrame()
-        cols = list(self._parts[0].columns)
-        return pd.concat(self._parts, ignore_index=True)[cols]
+def _sha256(path: Path, chunk: int = 1 << 20) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while b := f.read(chunk):
+            h.update(b)
+    return h.hexdigest()
 
 
-def _table_cols(con: duckdb.DuckDBPyConnection, table: str) -> Dict[str, str]:
-    """Return {name_lower: type_name_upper} for a table."""
-    rows = con.execute(f"PRAGMA table_info({table})").fetchall()
-    # schema: cid, name, type, notnull, dflt_value, pk
-    return {r[1].lower(): (r[2] or "").upper() for r in rows}
+def _iter_parquet(root: Path) -> Iterator[Path]:
+    for r, _, files in os.walk(root):
+        for f in files:
+            if f.endswith(".parquet"):
+                yield Path(r) / f
 
 
-def _count(con: duckdb.DuckDBPyConnection, sql: str, params: list | None = None) -> int:
-    return con.execute(sql, params or []).fetchone()[0]
+def _extract_source_id(fp: Path) -> Optional[str]:
+    parts = fp.parts
+    if "bronze" in parts:
+        i = parts.index("bronze")
+        return parts[i + 1] if i + 1 < len(parts) else None
+    return None
+
+
+def _glob_to_regex(pat: str) -> str:
+    """Translate a glob to a Python/DuckDB-compatible regex (anchored)."""
+    rx = fnmatch.translate(pat)
+    if not rx.startswith("(?s:"):
+        return rx
+    inner = rx[len("(?s:") : -4]  # strip (?s:  )\Z
+    return "^" + inner + "$"

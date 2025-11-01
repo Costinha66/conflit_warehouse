@@ -3,6 +3,7 @@
 uv.lock
 /data/**
 /warehouse/**
+/notebooks/**
 !.gitkeep
 __pycache__/
 .ipynb_checkpoints/
