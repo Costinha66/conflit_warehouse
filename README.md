@@ -1,32 +1,45 @@
 # Conflict & Crisis Data Warehouse
 
-A reproducible **data engineering and analytics pipeline** for humanitarian and conflict-related datasets.  
-This proof-of-concept demonstrates how to build a **bronze–silver–gold lakehouse architecture** with robust **data quality validation**, **manifest-based lineage**, and **snapshot reproducibility** — using **DuckDB** as a database and **Python** for data handeling.
+Every year, tens of millions of people are forcibly displaced by conflict, persecution, and crisis — yet the open data describing these movements is fragmented, inconsistently formatted, and difficult to combine. This project builds a **production-grade data engineering pipeline** that ingests UNHCR refugee flows and ACLED conflict events, enforces **data quality contracts at every layer**, and produces analytics-ready outputs with full **lineage and reproducibility guarantees** — all on a laptop, using DuckDB.
 
 ---
 
-## Project Overview
+## Architecture
 
-The **Conflict & Crisis Data Warehouse (CCDW)** integrates open sources such as **UNHCR refugee flows**, **ACLED conflict events**, and other humanitarian datasets into a unified, auditable warehouse.  
+```mermaid
+flowchart TD
+    S["📂 Sources\nUNHCR · ACLED · Other open data"]
+    B["🟫 Bronze\nImmutable raw snapshots\nSHA256 hashing · ingest_manifest · DQ policy"]
+    Si["🪙 Silver\nHarmonized & canonicalized\nSchema contracts · DQ-gated · Partitioned Parquet"]
+    G["🥇 Gold\nAnalytics-ready marts\nFK-validated · Yearly stacks · ML-ready features"]
+    L["📋 Lineage\nCoreLineageEvent per layer\nDuckDB audit log · run_id · I/U/D counts"]
 
-The pipeline can track monthly refugee movements across borders and join with conflict intensity data to forecast displacement pressure on host countries.
+    S --> B --> Si --> G
+    B -.->|emit| L
+    Si -.->|emit| L
+    G -.->|emit| L
+```
 
-It is designed to:
-- Support **policy analysis and forecasting** in conflict and displacement research;
-- Enforce **data quality (DQ)** and schema contracts at every layer;
-- Enable **incremental ingestion** and **reproducible snapshots** for longitudinal studies.
+Each layer is **gated**: a partition only promotes if it passes all DQ checks defined in the YAML schema contract for that entity.
 
 ---
 
-## Architecture (Medallion )
-Sources (UNHCR, ACLED, etc.)
-│
-Bronze → immutable raw snapshots, manifests, hashes
-│
-Silver → harmonized & validated tables
-│
-Gold → analytics-ready & ML feature datasets
+## Output Example
 
+A sample of the `gold.refugee_stack_yearly` mart — the final analytics output tracking refugee displacement by origin–destination country pair and year:
+
+| country_origin | country_destination | year | refugees | asylum_seekers | population_of_concern |
+|---|---|---|---|---|---|
+| Syrian Arab Rep. | Turkey | 2022 | 3,576,370 | 0 | 3,576,370 |
+| Afghanistan | Pakistan | 2022 | 1,427,939 | 0 | 1,427,939 |
+| South Sudan | Uganda | 2022 | 936,914 | 0 | 936,914 |
+| Myanmar | Bangladesh | 2022 | 919,300 | 0 | 919,300 |
+| Ukraine | Germany | 2022 | 1,028,649 | 0 | 1,028,649 |
+| Venezuela | Colombia | 2022 | 203,512 | 394,848 | 598,360 |
+| Dem. Rep. of the Congo | Uganda | 2022 | 458,239 | 0 | 458,239 |
+| Somalia | Kenya | 2022 | 322,831 | 0 | 322,831 |
+
+> Full output: 5,488 rows across all origin–destination–year combinations (2000–2022). See `notebooks/exploration.ipynb` for a live query against the gold layer.
 
 ---
 
@@ -35,15 +48,19 @@ Gold → analytics-ready & ML feature datasets
 | Area | Tools |
 |------|-------|
 | Data Engine | **DuckDB**, Parquet |
-| Orchestration | `make`, `structlog`, Python CLI |
-| Quality & Validation | Custom `DQBuilder`, manifest registry |
-| Schema & Metadata | `schemas/` folder, YAML/JSON contracts |
+| Orchestration | `make`, Python CLI (`typer`) |
+| Quality & Validation | Custom `DQBuilder`, YAML schema contracts |
+| Lineage & Auditability | `CoreLineageEvent`, DuckDB audit log |
+| Logging | `structlog` (structured JSON) |
 | Testing | `pytest`, synthetic datasets |
-| Environment | `uv` |
+| Environment | `uv`, `pre-commit`, `ruff` |
 
 ---
 
 ## Quickstart
+
+**Prerequisites:** UNHCR and/or ACLED source files placed in `data/raw/`.  
+See `src/diff/router.yaml` for the expected file patterns and routing rules.
 
 ```bash
 # 1. Clone
@@ -51,101 +68,97 @@ git clone https://github.com/Costinha66/conflit_warehouse
 cd conflit_warehouse
 
 # 2. Install dependencies
-uv sync     # or: poetry install
+uv sync
 
-# 3. Run sample pipeline
-make run-sample
+# 3. Install pre-commit hooks
+make setup
 
-# 4. Explore results
-duckdb results/warehouse.duckdb
-``` 
+# 4. Run the full pipeline
+make run.bronze    # ingest raw CSVs → bronze snapshots
+make run.diff      # discover files, populate ingest_manifest, route partitions
+make run.silver    # harmonize + canonicalize → silver tables
+make run.gold      # aggregate → gold analytics marts
+
+# 5. Explore results
+duckdb warehouse/warehouse.duckdb
+```
+
+---
 
 ## Repository Structure
-```bash
+
+```
 conflit_warehouse/
 │
 ├─ src/
 │  ├─ bronze/
-│  │  └─ snapshot_maker.py        # snapshot creation + metrics + dq
+│  │  └─ snapshot_maker.py        # snapshot creation + metrics + DQ
 │  ├─ diff/
-│  │  ├─ discovery.py             # scan bronze, populate ingest_manifest, routing
-│  │  ├─ parser.py, planner.py, router.py, router.yaml
+│  │  ├─ discovery.py             # scan bronze, populate ingest_manifest
+│  │  ├─ router.yaml              # source → entity routing rules
+│  │  ├─ parser.py, planner.py, router.py
 │  ├─ silver/
 │  │  ├─ processor.py             # canonicalize + harmonize → silver tables
 │  │  ├─ canonilaze.py, harmonizer.py
 │  ├─ gold/
 │  │  └─ processor_gold.py        # build analytics marts from silver
 │  ├─ core/
-│  │  ├─ types.py, config.py, logging.py, metrics.py, time.py, json.py
-│  │  ├─ dq/                      # bronze policy + dq helpers
-│  │  ├─ lineage/                 # lineage models & emitters
-│  │  └─ sql/, infra/duckdb/, infra/yaml_sql/
+│  │  ├─ types.py, config.py, logging.py, metrics.py
+│  │  ├─ dq/                      # DQ checks (schema, PK, FK, non-negative, reconcile)
+│  │  ├─ lineage/                 # CoreLineageEvent models & emitters
+│  │  └─ infra/duckdb/            # DuckDB I/O helpers
 │  └─ others/
-│     ├─ ddls.py                  # DDL helpers (ingest_manifest, etc.)
-│     └─ load_dim_country.py
+│     ├─ ddls.py                  # DDL generators (ingest_manifest, silver, gold, dims)
+│     └─ load_dim_country.py      # country dimension loader
 │
 ├─ schemas/
-│  ├─ silver/                     # e.g., refugees_stack.yaml, refugees_internal.yaml
+│  ├─ silver/                     # e.g., refugees_stack.yaml
 │  └─ gold/                       # e.g., refugees_stack_yearly.yaml
 │
 ├─ tests/
-│  └─ test_diff.py                # discovery/manifest tests
+│  └─ test_diff.py
 │
 ├─ docs/
-│  └─ decisions.md                # decisions & assumptions (SLA, promotion gates)
+│  └─ decisions.md                # architectural decisions & DQ policy
 │
 ├─ notebooks/
-│  └─ exploration.ipynb
+│  └─ exploration.ipynb           # gold-layer queries, DQ reports, lineage traces
 │
 ├─ makefile
 ├─ pyproject.toml
 └─ .pre-commit-config.yaml
-
-
 ```
 
-## Typical Flow & Artifacts
+---
 
-1. Bronze snapshot
+## How the Pipeline Works
 
-    - Writes Parquet under warehouse/bronze/...
+1. **Bronze** — Source CSVs/Parquets are written as immutable partitioned snapshots. Each snapshot records row count, byte size, and SHA256 hash. A DQ policy runs before the snapshot is committed.
 
-    - Computes records, bytes, SHA256
+2. **Discovery → Manifest** — `discovery.py` scans the bronze root, hashes each file, and populates an `ingest_manifest` table in DuckDB. `router.yaml` maps file patterns to entities and partitions. Dirty routes (new or changed files) are flagged for silver processing.
 
-    - Emits DQ summary
+3. **Silver** — Each dirty partition is loaded, harmonized (type casting, normalization), and canonicalized (dimensional joins, deduplication, row hash). Schema contracts in `schemas/silver/*.yaml` enforce column types, primary keys, and DQ rules before the partition is written.
 
-    - Discovery → Manifest
+4. **Gold** — `processor_gold.py` reads the latest promoted silver partitions and builds yearly aggregate marts. Foreign key integrity and reconciliation assertions (e.g., `population_of_concern = cross_border_total + internal_total`) are checked before the gold table is written.
 
-    - Scans Bronze and populates ingest_manifest in DuckDB
+5. **Lineage** — A `CoreLineageEvent` is emitted at each layer (discovery, transform, partition publish), capturing: `run_id`, `entity`, `layer`, `transform_version`, insert/update/delete counts, DQ status, and input file hashes. Events are written to a DuckDB audit log and to stdout as structured JSON.
 
-    - Maps sources → entities / partitions (router.yaml)
+---
 
-    - Expands partitions (YYYY, YYYY-MM) and marks dirty routes
+## Key Design Decisions
 
-2. Silver
+See [`docs/decisions.md`](docs/decisions.md) for full rationale. Highlights:
 
-    - Loads dirty partitions
+- **DuckDB over Postgres/Spark** — columnar OLAP engine with zero infrastructure overhead; handles hundreds of millions of rows comfortably on a single machine for this data scale.
+- **Medallion + snapshot semantics** — cumulative snapshots enable point-in-time reproducibility and safe replay (`make replay` reprocesses silver and gold from existing bronze).
+- **YAML schema contracts** — schema, DQ rules, and transform logic colocated in one file per entity; the pipeline reads these at runtime rather than hardcoding transforms.
 
-    - Applies canonicalize() → harmonize()
-
-    - Enforces schema contracts from schemas/silver/*.yaml
-
-    - Writes partitioned Silver tables
-
-3. Gold
-
-    - Builds analytics marts from latest promoted Silver via schemas/gold/*.yaml
-
-This project emphasizes data transparency, auditability, and responsible use of humanitarian data.
-All data used are synthetic or open-source, and the pipeline design ensures traceable lineage and reproducible outputs, aligning with principles of Do No Harm and data responsibility.
+---
 
 ## Author
 
-Filipe Costa
-
-Data Science @ JADS
+Filipe Costa — Data Science @ JADS
 
 ## License
 
 MIT License © 2025 Filipe Costa
-
