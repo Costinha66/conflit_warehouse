@@ -1,6 +1,6 @@
 # Conflict & Crisis Data Warehouse
 
-Every year, tens of millions of people are forcibly displaced by conflict, persecution, and crisis — yet the open data describing these movements is fragmented, inconsistently formatted, and difficult to combine. This project builds a **production-grade data engineering pipeline** that ingests UNHCR refugee flows and ACLED conflict events, enforces **data quality contracts at every layer**, and produces analytics-ready outputs with full **lineage and reproducibility guarantees** — all on a laptop, using DuckDB.
+Every year, tens of millions of people are forcibly displaced by conflict, persecution, and crisis — yet the open data describing these movements is fragmented, inconsistently formatted, and difficult to combine. This project builds a **production-grade data engineering pipeline** that ingests UNHCR refugee flows and ACLED conflict events, enforces **data quality contracts at every layer**, and produces analytics-ready outputs with full **lineage and reproducibility guarantees**, emulating a production enviromnet, locally.
 
 ---
 
@@ -26,20 +26,20 @@ Each layer is **gated**: a partition only promotes if it passes all DQ checks de
 
 ## Output Example
 
-A sample of the `gold.refugee_stack_yearly` mart — the final analytics output tracking refugee displacement by origin–destination country pair and year:
+A sample of the `gold.refugee_stack_yearly` mart — actual pipeline output, 2020 partition (5,488 origin–destination combinations):
 
 | country_origin | country_destination | year | refugees | asylum_seekers | population_of_concern |
 |---|---|---|---|---|---|
-| Syrian Arab Rep. | Turkey | 2022 | 3,576,370 | 0 | 3,576,370 |
-| Afghanistan | Pakistan | 2022 | 1,427,939 | 0 | 1,427,939 |
-| South Sudan | Uganda | 2022 | 936,914 | 0 | 936,914 |
-| Myanmar | Bangladesh | 2022 | 919,300 | 0 | 919,300 |
-| Ukraine | Germany | 2022 | 1,028,649 | 0 | 1,028,649 |
-| Venezuela | Colombia | 2022 | 203,512 | 394,848 | 598,360 |
-| Dem. Rep. of the Congo | Uganda | 2022 | 458,239 | 0 | 458,239 |
-| Somalia | Kenya | 2022 | 322,831 | 0 | 322,831 |
+| AFG | ALB | 2020 | 0 | 0 | 5 |
+| AFG | EGY | 2020 | 34 | 44 | 78 |
+| AFG | ARG | 2020 | 12 | 0 | 12 |
+| AFG | ARM | 2020 | 5 | 0 | 5 |
+| AFG | AUS | 2020 | 10,659 | 1,761 | 12,420 |
+| ZWE | SWE | 2020 | 18 | 10 | 28 |
+| ZWE | CHE | 2020 | 12 | 5 | 17 |
+| ZWE | USA | 2020 | 756 | 1,041 | 1,797 |
 
-> Full output: 5,488 rows across all origin–destination–year combinations (2000–2022). See `notebooks/exploration.ipynb` for a live query against the gold layer.
+> See `notebooks/exploration.ipynb` for a live query against the gold layer with full output.
 
 ---
 
@@ -80,7 +80,7 @@ make run.silver    # harmonize + canonicalize → silver tables
 make run.gold      # aggregate → gold analytics marts
 
 # 5. Explore results
-duckdb warehouse/warehouse.duckdb
+duckdb warehouse/database.db
 ```
 
 ---
@@ -105,8 +105,10 @@ conflit_warehouse/
 │  ├─ core/
 │  │  ├─ types.py, config.py, logging.py, metrics.py
 │  │  ├─ dq/                      # DQ checks (schema, PK, FK, non-negative, reconcile)
-│  │  ├─ lineage/                 # CoreLineageEvent models & emitters
-│  │  └─ infra/duckdb/            # DuckDB I/O helpers
+│  │  └─ lineage/                 # CoreLineageEvent models & emitters
+│  ├─ infra/
+│  │  ├─ duckdb/                  # DuckDB I/O helpers
+│  │  └─ yaml_sql/                # SQL generation from YAML specs
 │  └─ others/
 │     ├─ ddls.py                  # DDL generators (ingest_manifest, silver, gold, dims)
 │     └─ load_dim_country.py      # country dimension loader
