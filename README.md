@@ -1,5 +1,7 @@
 # Conflict & Crisis Data Warehouse
 
+![CI](https://github.com/Costinha66/conflit_warehouse/actions/workflows/ci.yml/badge.svg)
+
 A reproducible **data engineering and analytics pipeline** for humanitarian and conflict-related datasets.  
 This proof-of-concept demonstrates how to build a **bronze–silver–gold lakehouse architecture** with robust **data quality validation**, **manifest-based lineage**, and **snapshot reproducibility** — using **DuckDB** as a database and **Python** for data handeling.
 
