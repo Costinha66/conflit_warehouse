@@ -1,0 +1,4 @@
+[core]
+    remote = local_store
+['remote "local_store"']
+    url = ../dvc_store

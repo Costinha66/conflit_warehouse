@@ -75,7 +75,10 @@ uv sync
 # 3. Install pre-commit hooks
 make setup
 
-# 4. Run the full pipeline
+# 4. Run the full pipeline (via Prefect)
+make run.flow      # bronze → diff → silver → gold, orchestrated by Prefect
+
+# — or run each stage manually —
 make run.bronze    # ingest raw CSVs → bronze snapshots
 make run.diff      # discover files, populate ingest_manifest, route partitions
 make run.silver    # harmonize + canonicalize → silver tables
@@ -84,6 +87,22 @@ make run.gold      # aggregate → gold analytics marts
 # 5. Explore results
 duckdb warehouse/database.db
 ```
+
+---
+
+## Data Versioning (DVC)
+
+Bronze snapshots are versioned with [DVC](https://dvc.org). A local remote is pre-configured at `./dvc_store`.
+
+```bash
+# After cloning, restore the latest bronze snapshots
+dvc pull
+
+# After a pipeline run, push new snapshots to the local store
+dvc add warehouse/bronze && dvc push
+```
+
+The `warehouse/bronze.dvc` pointer file is committed to git and tracks the content hash of every bronze snapshot. `dvc pull` restores the actual Parquet files from the local store.
 
 ---
 

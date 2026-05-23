@@ -1,7 +1,9 @@
 .venv/
 .ruff_cache/
 /data/**
-/warehouse/**
+/warehouse/*
+!/warehouse/*.dvc
+/dvc_store/
 /notebooks/**
 !.gitkeep
 __pycache__/
