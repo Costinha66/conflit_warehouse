@@ -148,3 +148,15 @@ def _glob_to_regex(pat: str) -> str:
         return rx
     inner = rx[len("(?s:") : -4]  # strip (?s:  )\Z
     return "^" + inner + "$"
+
+
+def _table_cols(con, table: str) -> dict:
+    """Return {col_name_lower: type_str} for a DuckDB table or temp table."""
+    rows = con.execute(f"DESCRIBE {table};").fetchall()
+    return {row[0].lower(): row[1] for row in rows}
+
+
+def _count(con, sql: str) -> int:
+    """Run sql and return the first cell as int."""
+    result = con.execute(sql).fetchone()
+    return int(result[0]) if result and result[0] is not None else 0

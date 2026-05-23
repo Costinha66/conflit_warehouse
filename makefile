@@ -16,6 +16,9 @@ run.silver:
 run.gold:
 	uv run  -m src.gold.processor_gold
 
+run.flow:
+	uv run -m src.orchestration.pipeline_flow
+
 replay:
 	rm -rf warehouse/silver/* warehouse/gold/*
 	$(MAKE) run.diff run.silver run.gold

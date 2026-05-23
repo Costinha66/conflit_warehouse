@@ -8,7 +8,7 @@ from src.core.lineage import (
     StdoutJsonEmitter,
 )
 from src.core.types import CommitEvent
-from src.core.miscelannious import _quote_ident
+from src.core.sql.quote import _quote_ident
 
 
 def insert_commit(
