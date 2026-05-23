@@ -61,7 +61,7 @@ A sample of the `gold.refugee_stack_yearly` mart — actual pipeline output, 202
 
 ## Quickstart
 
-**Prerequisites:** UNHCR and/or ACLED source files placed in `data/raw/`.  
+**Prerequisites:** UNHCR and/or ACLED source files placed in `data/raw/`.
 See `src/diff/router.yaml` for the expected file patterns and routing rules.
 
 ```bash
