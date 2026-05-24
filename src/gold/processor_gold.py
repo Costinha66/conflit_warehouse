@@ -158,9 +158,7 @@ class GoldProcessor:
 
 def main(
     warehouse_path: str = typer.Option("warehouse/database.db", "--db"),
-    spec_path: str = typer.Option(
-        "schemas/gold/refugees_stack_yearly.yaml", "--spec"
-    ),
+    spec_path: str = typer.Option("schemas/gold/refugees_stack_yearly.yaml", "--spec"),
     log_level: str = typer.Option("INFO", "--log-level"),
 ):
     configure_logging(log_level)

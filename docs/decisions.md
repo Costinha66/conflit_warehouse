@@ -67,4 +67,3 @@
 
 - **Nature of Verification**
   Claude Code performed static analysis — reading source files, tracing data flow across modules, and comparing code to this document. It did not execute the pipeline or generate test data. All findings were reviewed and accepted by the author.
-

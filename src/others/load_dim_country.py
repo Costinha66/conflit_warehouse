@@ -62,7 +62,6 @@ def load_dim_country():
     )
 
 
-
 if __name__ == "__main__":
     build_country_dim()
     load_dim_country()

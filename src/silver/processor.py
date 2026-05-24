@@ -226,9 +226,7 @@ class SilverProcessor:
 # -------------------------
 def main(
     warehouse_path: str = typer.Option("warehouse/database.db", "--db"),
-    spec_path: str = typer.Option(
-        "schemas/silver/refugees_stack.yaml", "--spec"
-    ),
+    spec_path: str = typer.Option("schemas/silver/refugees_stack.yaml", "--spec"),
     log_level: str = typer.Option("INFO", "--log-level"),
 ):
     base_logger = configure_logging(log_level)

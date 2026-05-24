@@ -257,9 +257,7 @@ def test_diff_partition_removed_all_deletes(con):
 
 
 def test_diff_row_hash_changed_counts_as_update(con):
-    _seed_silver(
-        con, [{"country": "AFG", "year": 2020, "row_hash": "old_hash"}]
-    )
+    _seed_silver(con, [{"country": "AFG", "year": 2020, "row_hash": "old_hash"}])
     df_new = pd.DataFrame(
         {"country": ["AFG"], "year": [2020], "row_hash": ["new_hash"]}
     )
@@ -270,9 +268,7 @@ def test_diff_row_hash_changed_counts_as_update(con):
 
 
 def test_diff_identical_rows_no_change(con):
-    _seed_silver(
-        con, [{"country": "AFG", "year": 2020, "row_hash": "same"}]
-    )
+    _seed_silver(con, [{"country": "AFG", "year": 2020, "row_hash": "same"}])
     df_new = pd.DataFrame({"country": ["AFG"], "year": [2020], "row_hash": ["same"]})
     ins, upd, dlt, h = diff_counts_and_hash(con, df_new, "test_entity", "2020", _SPEC)
     assert ins == 0
