@@ -11,7 +11,7 @@ class LineageEmitter:
 
 class StdoutJsonEmitter(LineageEmitter):
     def emit(self, event: CoreLineageEvent) -> None:
-        print(json.dumps(event.to_payload(), ensure_ascii=False, default=json_safe))
+        print(json.dumps(event.to_payload(), ensure_ascii=False, default=json_safe))  # noqa: T201
 
 
 class DuckDBAuditEmitter(LineageEmitter):

@@ -61,9 +61,6 @@ def load_dim_country():
         [DIM_PARQUET],
     )
 
-    # sanity check
-    print(con.execute("SELECT COUNT(*) AS n_rows FROM dims.dim_country;").fetchall())
-    print(con.execute("PRAGMA table_info('dims.dim_country');").df())
 
 
 if __name__ == "__main__":

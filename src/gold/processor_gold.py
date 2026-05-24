@@ -6,6 +6,7 @@ import duckdb
 import pandas as pd
 from pathlib import Path
 import logging
+import typer
 
 from src.core.json import load_schema
 from src.core.dq.dq import run_dq_tests
@@ -61,7 +62,6 @@ class GoldProcessor:
         # 4) DQ gate (fail-fast). Reuse your YAML-driven tests where possible.
         self.con.register("gold_tmp_df", df_gold)
         self.con.execute("CREATE TEMP TABLE writing_temp AS SELECT * FROM gold_tmp_df;")
-        print(df_gold.head())
         dq_report = run_dq_tests(
             con=self.con,
             tmp_table="writing_temp",
@@ -157,9 +157,11 @@ class GoldProcessor:
 
 
 def main(
-    warehouse_path: str = "warehouse/database.db",
-    spec_path: str = "/home/faacosta0245695/conflit/conflit_warehouse/schemas/silver/refugees_stack.yaml",
-    log_level: str = "INFO",
+    warehouse_path: str = typer.Option("warehouse/database.db", "--db"),
+    spec_path: str = typer.Option(
+        "schemas/gold/refugees_stack_yearly.yaml", "--spec"
+    ),
+    log_level: str = typer.Option("INFO", "--log-level"),
 ):
     configure_logging(log_level)
     base_logger = logging.getLogger("processor")
@@ -183,14 +185,4 @@ def main(
 
 
 if __name__ == "__main__":
-    import argparse
-
-    p = argparse.ArgumentParser()
-    p.add_argument("--db", default="warehouse/database.db")
-    p.add_argument(
-        "--spec",
-        default="/home/faacosta0245695/conflit/conflit_warehouse/schemas/gold/refugees_stack_yearly.yaml",
-    )
-    p.add_argument("--log-level", default="INFO")
-    args = p.parse_args()
-    main(warehouse_path=args.db, spec_path=args.spec, log_level=args.log_level)
+    typer.run(main)

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 import duckdb
 import pandas as pd
+import typer
 from src.silver.harmonizer import apply_harmonize
 from src.silver.canonilaze import canonicalize
 from src.core.json import load_schema
@@ -128,7 +129,6 @@ class SilverProcessor:
 
         # 3) Canonicalize
         df_c, rej_c, dq_c = canonicalize(df_h, spec, slog)
-        print(df_c.columns)
 
         # 4) Temp table + DQ (generic runner)
         self.con.register("silver_tmp_df", df_c)
@@ -155,8 +155,9 @@ class SilverProcessor:
         df_c["_build_at"] = now_utc()
 
         # 6) Diff/hash (optional if your writer doesn’t need it)
-        partition_hash = diff_counts_and_hash(self.con, df_c, entity, part, spec)
-        print(inputs)
+        inserts, updates, deletes, partition_hash = diff_counts_and_hash(
+            self.con, df_c, entity, part, spec
+        )
         # 7) Build CommitEvent once
         ev = CommitEvent(
             run=RunRef(
@@ -172,9 +173,9 @@ class SilverProcessor:
             ),
             commit_entity="silver_commits",
             row_count=len(df_c),
-            insert_cnt=0,
-            update_cnt=0,
-            delete_cnt=0,  # optional: fill if you compute I/U/D
+            insert_cnt=inserts,
+            update_cnt=updates,
+            delete_cnt=deletes,
             partition_hash=partition_hash,
             inputs=inputs,
             dq_summary=DQSummary(
@@ -224,10 +225,11 @@ class SilverProcessor:
 # Entrypoint
 # -------------------------
 def main(
-    bronze_path: str = "/home/faacosta0245695/conflit/conflit_warehouse/data/bronze",
-    warehouse_path: str = "warehouse/database.db",
-    spec_path: str = "/home/faacosta0245695/conflit/conflit_warehouse/schemas/silver/refugees_stack.yaml",
-    log_level: str = "INFO",
+    warehouse_path: str = typer.Option("warehouse/database.db", "--db"),
+    spec_path: str = typer.Option(
+        "schemas/silver/refugees_stack.yaml", "--spec"
+    ),
+    log_level: str = typer.Option("INFO", "--log-level"),
 ):
     base_logger = configure_logging(log_level)
 
@@ -254,14 +256,4 @@ def main(
 
 
 if __name__ == "__main__":
-    import argparse
-
-    p = argparse.ArgumentParser()
-    p.add_argument("--db", default="warehouse/database.db")
-    p.add_argument(
-        "--spec",
-        default="/home/faacosta0245695/conflit/conflit_warehouse/schemas/silver/refugees_stack.yaml",
-    )
-    p.add_argument("--log-level", default="INFO")
-    args = p.parse_args()
-    main(warehouse_path=args.db, spec_path=args.spec, log_level=args.log_level)
+    typer.run(main)

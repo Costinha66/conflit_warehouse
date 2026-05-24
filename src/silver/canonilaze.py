@@ -195,8 +195,6 @@ def canonicalize(df: pd.DataFrame, spec: Dict[str, Any], logger):
             join_metrics.append(m)
             rc.add(rej)
 
-            print(rej)
-
             unmatched = m.get("unmatched_left", 0)
             if unmatched and d.get("required", False):
                 logger.warning("canonicalize.required_dim_unmatched")

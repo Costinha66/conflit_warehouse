@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 import duckdb
 from src.core.miscelannious import _table_cols, _count
 from src.core.time import now_utc
-from src.core.dataclasses import TestResult, DQReport
+from src.core.types import TestResult, DQReport
 
 # ---- type normalization (engine-agnostic) ----
 TYPE_SYNONYMS = {
