@@ -50,3 +50,21 @@
   Each snapshot folder contains:
   - `part-000.parquet` – the data.
   - `_dq_summary.json` – metrics + DQ outcome.
+
+---
+
+### AI-Assisted Architecture Verification (Claude Code)
+
+- **Tool Used**
+  [Claude Code](https://claude.ai/code) (Anthropic) was used interactively throughout the POC to verify architectural decisions, review code structure, and cross-check implementation against documented intent.
+
+- **Scope of Use**
+  - Verified that the Bronze → Silver → Gold layering is consistently applied across `src/bronze/`, `src/silver/`, `src/gold/`, and `src/orchestration/`.
+  - Confirmed that DQ policy (gate-at-promotion, quarantine-to-`_rejects`, `dq_passed` flag) is reflected in `src/core/dq/` and `src/bronze/snapshot_maker.py`.
+  - Cross-checked that structured logging fields (`run_id`, `snapshot_version`, `hash`, `dq_metrics`, etc.) documented here match the implementation in `src/core/logging.py` and `src/core/lineage/`.
+  - Reviewed schema contracts in `schemas/silver/` and `schemas/gold/` for alignment with documented promotion gates.
+  - Assessed CI/CD setup (`.github/workflows/ci.yml`, `.pre-commit-config.yaml`, `pyproject.toml`) for consistency with the stated toolchain (ruff, pytest, DVC, Prefect).
+
+- **Nature of Verification**
+  Claude Code performed static analysis — reading source files, tracing data flow across modules, and comparing code to this document. It did not execute the pipeline or generate test data. All findings were reviewed and accepted by the author.
+
